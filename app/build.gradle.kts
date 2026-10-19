@@ -14,7 +14,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "org.koitharu.album"
+        applicationId = "io.github.farhun.album"
         minSdk = 24
         targetSdk = 37
         versionCode = 3

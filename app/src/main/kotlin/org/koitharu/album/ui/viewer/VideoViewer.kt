@@ -134,6 +134,7 @@ fun VideoPlayer(
     val volumeController = remember { VolumeController(startMuted) }
     val position = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
+
     LaunchedEffect(isPlaying) {
         snapshotFlow {
             isPlaying

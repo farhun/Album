@@ -26,6 +26,7 @@ import org.koitharu.album.ui.viewer.ViewerEffect.OnError
 import org.koitharu.album.ui.viewer.ViewerIntent.CloseInfo
 import org.koitharu.album.ui.viewer.ViewerIntent.Delete
 import org.koitharu.album.ui.viewer.ViewerIntent.Edit
+import org.koitharu.album.ui.viewer.ViewerIntent.EditVideo
 import org.koitharu.album.ui.viewer.ViewerIntent.Favorite
 import org.koitharu.album.ui.viewer.ViewerIntent.OnMediaChanged
 import org.koitharu.album.ui.viewer.ViewerIntent.OpenInExternalApp
@@ -126,15 +127,16 @@ class ViewerViewModel @AssistedInject constructor(
             }
 
             is Edit -> openEditor(intent.image)
+            is EditVideo -> openVideoEditor(intent.video)
             CloseInfo -> state.update {
                 it.copy(
-                    infoBottomSheetImage = null,
+                    infoBottomSheetMedia = null,
                 )
             }
 
             is OpenInfo -> state.update {
                 it.copy(
-                    infoBottomSheetImage = intent.image,
+                    infoBottomSheetMedia = intent.media,
                 )
             }
 
@@ -153,6 +155,18 @@ class ViewerViewModel @AssistedInject constructor(
                 repository.setIsFavorite(listOf(media.uri), isFavorite)
             }.onFailure {
                 sendEffect(OnError(it))
+            }
+        }
+    }
+
+    private fun openVideoEditor(video: AlbumItem.Video) {
+        viewModelScope.launch {
+            try {
+                if (!shellIntegrationHelper.openVideoEditor(video)) {
+                    sendEffect(ViewerEffect.NoVideoEditorFound)
+                }
+            } catch (e: Exception) {
+                sendEffect(OnError(e))
             }
         }
     }

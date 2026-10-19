@@ -23,6 +23,8 @@ interface MediaStoreRepository {
 
     suspend fun getRecycleBinSize(): Int
 
+    fun observeRecycleBinSize(): Flow<Int>
+
     suspend fun getFolders(): List<MediaFolder>
 
     fun observeFolders(): Flow<List<MediaFolder>>

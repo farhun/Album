@@ -8,13 +8,13 @@ data class ViewerState(
     val currentMedia: AlbumItem.Media,
     val isRotationGestureEnabled: Boolean,
     val isVideosMutedOnStart: Boolean,
-    val infoBottomSheetImage: AlbumItem.Image?,
+    val infoBottomSheetMedia: AlbumItem.Media?,
 ) {
 
     constructor(media: AlbumItem.Media) : this(
         currentMedia = media,
         isRotationGestureEnabled = false,
-        infoBottomSheetImage = null,
+        infoBottomSheetMedia = null,
         isVideosMutedOnStart = false,
     )
 }

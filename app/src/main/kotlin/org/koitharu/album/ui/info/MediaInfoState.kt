@@ -11,7 +11,11 @@ data class MediaInfoState(
     val latLng: Pair<Double, Double>?,
     val model: String?,
     val size: Size?,
-    val histogram: ImageHistogram?,
+    val fileSizeBytes: Long?,
+    val path: String?,
+    val relativePath: String?,
+    val volumeName: String?,
+    val isImage: Boolean,
 ) {
 
     constructor(media: AlbumItem.Media) : this(
@@ -19,7 +23,11 @@ data class MediaInfoState(
         latLng = null,
         model = null,
         size = null,
-        histogram = null,
+        fileSizeBytes = null,
+        path = null,
+        relativePath = null,
+        volumeName = null,
+        isImage = media is AlbumItem.Image,
     )
 
     val sizeMp: Double? = size?.run {

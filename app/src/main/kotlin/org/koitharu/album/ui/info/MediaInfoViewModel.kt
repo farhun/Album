@@ -1,6 +1,13 @@
 package org.koitharu.album.ui.info
 
 import android.content.ContentResolver
+import android.content.Context
+import android.media.MediaMetadataRetriever
+import android.os.Build
+import android.os.Environment
+import android.os.storage.StorageManager
+import android.provider.DocumentsContract
+import android.provider.MediaStore
 import android.util.Size
 import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.viewModelScope
@@ -8,6 +15,7 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -18,53 +26,191 @@ import org.koitharu.album.util.runCatchingCancellable
 
 @HiltViewModel(assistedFactory = MediaInfoViewModel.Factory::class)
 class MediaInfoViewModel @AssistedInject constructor(
-    @Assisted private val media: AlbumItem.Image,
+    @Assisted private val media: AlbumItem.Media,
     private val contentResolver: ContentResolver,
+    @ApplicationContext private val context: Context,
 ) : MviViewModel<MediaInfoState, Nothing, Nothing>(MediaInfoState(media)) {
 
     init {
-        readExifData()
-        readHistogram()
+        readFileInfo()
     }
 
-    override fun handleIntent(intent: Nothing) {
-
-    }
-
-    private fun readHistogram() = viewModelScope.launch(Dispatchers.Default) {
-        val histogram = runCatchingCancellable {
-            contentResolver.openInputStream(media.uri)?.use { stream ->
-                BitmapAnalyzer().decodeHistogram(stream)
+    fun onMediaLocationPermissionResult(isGranted: Boolean) {
+        if (media is AlbumItem.Image) {
+            viewModelScope.launch(Dispatchers.IO) {
+                readImageDetails(locationAllowed = isGranted)
             }
-        }.getOrNull()
-        state.update {
-            it.copy(histogram = histogram)
         }
     }
 
-    private fun readExifData() = viewModelScope.launch(Dispatchers.Default) {
+    override fun handleIntent(intent: Nothing) {
+    }
+
+    private fun readFileInfo() = viewModelScope.launch(Dispatchers.IO) {
+        val info = runCatchingCancellable {
+            val cursor = contentResolver.query(
+                media.uri,
+                arrayOf(
+                    MediaStore.MediaColumns.SIZE,
+                    MediaStore.MediaColumns.DATA,
+                    MediaStore.MediaColumns.RELATIVE_PATH,
+                    MediaStore.MediaColumns.DISPLAY_NAME,
+                ),
+                null,
+                null,
+                null,
+            )
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    val sizeColumn = it.getColumnIndex(MediaStore.MediaColumns.SIZE)
+                    val dataColumn = it.getColumnIndex(MediaStore.MediaColumns.DATA)
+                    val relativePathColumn = it.getColumnIndex(MediaStore.MediaColumns.RELATIVE_PATH)
+                    val nameColumn = it.getColumnIndex(MediaStore.MediaColumns.DISPLAY_NAME)
+                    val dataPath = if (dataColumn >= 0) it.getString(dataColumn) else null
+                    val relativePath = if (relativePathColumn >= 0) it.getString(relativePathColumn) else null
+                    val displayName = if (nameColumn >= 0) it.getString(nameColumn) else media.name
+                    val path = dataPath ?: buildFullPath(relativePath, displayName)
+                    val volumeName = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        runCatching { MediaStore.getVolumeName(media.uri) }.getOrNull()
+                    } else {
+                        MediaStore.VOLUME_EXTERNAL_PRIMARY
+                    }
+                    Triple(
+                        if (sizeColumn >= 0) it.getLong(sizeColumn).takeIf { size -> size >= 0L } else null,
+                        path,
+                        relativePath to volumeName,
+                    )
+                } else null
+            }
+        }.getOrNull()
+        val sizeBytes = info?.first ?: runCatchingCancellable {
+            contentResolver.openAssetFileDescriptor(media.uri, "r")?.use { descriptor ->
+                descriptor.length.takeIf { it >= 0L }
+            }
+        }.getOrNull()
+        state.update {
+            it.copy(
+                fileSizeBytes = sizeBytes,
+                path = info?.second,
+                relativePath = info?.third?.first,
+                volumeName = info?.third?.second,
+            )
+        }
+    }
+
+    fun getContainingFolderDocumentUri(path: String?): Pair<android.net.Uri?, String?> {
+        path ?: return null to null
+        val normalizedPath = when {
+            path.startsWith("/storage/emulated/0/") -> "primary:${path.removePrefix("/storage/emulated/0/")}"
+            path.startsWith("/sdcard/") -> "primary:${path.removePrefix("/sdcard/")}"
+            path.startsWith("/storage/self/primary/") -> "primary:${path.removePrefix("/storage/self/primary/")}"
+            path.startsWith("/storage/") -> {
+                val remainder = path.removePrefix("/storage/")
+                val volumeId = remainder.substringBefore('/')
+                if (volumeId.isEmpty() || volumeId == "emulated" || volumeId == "self") {
+                    return null to null
+                }
+                "$volumeId:${remainder.substringAfter('/', "")}"
+            }
+
+            else -> return null to null
+        }
+        val volumeId = normalizedPath.substringBefore(':')
+        val filePath = normalizedPath.substringAfter(':')
+        val folderPath = filePath.substringBeforeLast('/', "")
+        val documentId = "$volumeId:$folderPath"
+        val uri = runCatching {
+            DocumentsContract.buildDocumentUri(
+                "com.android.externalstorage.documents",
+                documentId,
+            )
+        }.getOrNull()
+        return uri to documentId
+    }
+
+
+    private fun readImageDetails(locationAllowed: Boolean) {
         runCatchingCancellable {
-            contentResolver.openInputStream(media.uri)?.use { stream ->
-                val exif = ExifInterface(stream)
-                state.update {
-                    it.copy(
-                        latLng = exif.latLong?.let { latLng -> latLng[0] to latLng[1] },
+            val imageUri = if (locationAllowed && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                runCatching { MediaStore.setRequireOriginal(media.uri) }.getOrNull()
+            } else {
+                null
+            }
+            val stream = (imageUri?.let { runCatching { contentResolver.openInputStream(it) }.getOrNull() }
+                ?: contentResolver.openInputStream(media.uri)) ?: return@runCatchingCancellable
+            stream.use {
+                val exif = ExifInterface(it)
+                state.update { currentState ->
+                    currentState.copy(
+                        latLng = if (locationAllowed) exif.latLong?.let { latLng -> latLng[0] to latLng[1] } else currentState.latLng,
                         model = exif.getAttribute(ExifInterface.TAG_MODEL),
                         size = lets(
                             exif.getAttribute(ExifInterface.TAG_IMAGE_WIDTH)?.toIntOrNull(),
                             exif.getAttribute(ExifInterface.TAG_IMAGE_LENGTH)?.toIntOrNull(),
-                        ) { w, h ->
-                            Size(w, h)
-                        }
+                        ) { w, h -> Size(w, h) },
                     )
                 }
             }
         }
     }
 
+    private fun buildFullPath(relativePath: String?, displayName: String?): String? {
+        if (displayName.isNullOrEmpty()) return null
+        val volumeName = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            runCatching { MediaStore.getVolumeName(media.uri) }.getOrNull()
+        } else {
+            MediaStore.VOLUME_EXTERNAL_PRIMARY
+        }
+        val root = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val storageManager = context.getSystemService(StorageManager::class.java)
+            storageManager.storageVolumes.firstOrNull { it.mediaStoreVolumeName == volumeName }
+                ?.directory?.absolutePath
+        } else if (volumeName == MediaStore.VOLUME_EXTERNAL_PRIMARY) {
+            Environment.getExternalStorageDirectory().absolutePath
+        } else {
+            null
+        } ?: return null
+        val directory = relativePath.orEmpty().trim('/')
+        return if (directory.isEmpty()) {
+            "$root/$displayName"
+        } else {
+            "$root/$directory/$displayName"
+        }
+    }
+
+    private fun readVideoLocation() {
+        runCatchingCancellable {
+            val retriever = MediaMetadataRetriever()
+            try {
+                retriever.setDataSource(context, media.uri)
+                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_LOCATION)
+                    ?.let(::parseVideoLocation)
+            } finally {
+                retriever.release()
+            }
+        }.getOrNull()?.let { coordinates ->
+            state.update { it.copy(latLng = coordinates) }
+        }
+    }
+
+    fun readLocationMetadata() {
+        if (media is AlbumItem.Video) {
+            viewModelScope.launch(Dispatchers.IO) {
+                readVideoLocation()
+            }
+        }
+    }
+
+    private fun parseVideoLocation(value: String): Pair<Double, Double>? {
+        val coordinates = Regex("([+-][0-9]+(?:\\.[0-9]+)?)([+-][0-9]+(?:\\.[0-9]+)?)").find(value)
+            ?: return null
+        val latitude = coordinates.groupValues[1].toDoubleOrNull() ?: return null
+        val longitude = coordinates.groupValues[2].toDoubleOrNull() ?: return null
+        return latitude to longitude
+    }
+
     @AssistedFactory
     interface Factory {
-
-        fun create(media: AlbumItem.Image): MediaInfoViewModel
+        fun create(media: AlbumItem.Media): MediaInfoViewModel
     }
 }

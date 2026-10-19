@@ -2,6 +2,7 @@ package org.koitharu.album.ui.settings
 
 import androidx.compose.runtime.Immutable
 import org.koitharu.album.model.HomeBannerSource
+import org.koitharu.album.model.MediaSortOrder
 import org.koitharu.album.model.ThemeVariant
 import org.koitharu.album.repository.Features
 
@@ -15,6 +16,7 @@ data class SettingsState(
     val useExternalEditor: Boolean,
     val isVideosMutedOnStart: Boolean,
     val showAllDCIMFolders: Boolean,
+    val mediaSortOrder: MediaSortOrder,
 ) {
 
     constructor() : this(
@@ -26,5 +28,6 @@ data class SettingsState(
         useExternalEditor = false,
         isVideosMutedOnStart = false,
         showAllDCIMFolders = false,
+        mediaSortOrder = MediaSortOrder.DATE_CAPTURED,
     )
 }

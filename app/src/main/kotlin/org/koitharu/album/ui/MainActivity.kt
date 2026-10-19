@@ -8,15 +8,19 @@ import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SharedTransitionLayout
+
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenuItem
+
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -37,9 +41,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.graphics.Color
+
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -56,8 +63,9 @@ import org.koitharu.album.ui.common.AlbumItem.Media
 import org.koitharu.album.ui.common.ComposeActivity
 import org.koitharu.album.ui.common.EmptyState
 import org.koitharu.album.ui.common.LocalDarkMode
-import org.koitharu.album.ui.common.OptionsMenu
+
 import org.koitharu.album.ui.common.SetSystemBarsColorsEffect
+
 import org.koitharu.album.ui.folders.FolderContentScreen
 import org.koitharu.album.ui.folders.FolderItem
 import org.koitharu.album.ui.folders.FoldersContent
@@ -71,10 +79,11 @@ import org.koitharu.album.ui.settings.SettingsActivity
 import org.koitharu.album.ui.theme.AlbumTheme
 import org.koitharu.album.ui.viewer.ViewerScreen
 import org.koitharu.album.util.IconButtonWithTooltip
-import org.koitharu.album.util.ifThen
+
 import org.koitharu.album.util.rememberNestedScrollDirectionConnection
 import org.koitharu.album.util.rememberPermissionCheck
 import org.koitharu.album.util.rememberPermissionsCheck
+
 
 @AndroidEntryPoint
 class MainActivity : ComposeActivity() {
@@ -193,9 +202,32 @@ private fun HomeContent(
     val layoutType =
         NavigationSuiteScaffoldDefaults.calculateFromAdaptiveInfo(currentWindowAdaptiveInfoV2())
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    var isScrollingToTop by remember { mutableStateOf(false) }
+    val scrollGridToTop: () -> Unit = {
+        val gridState = albumScope.gridState
+        if (!isScrollingToTop && (gridState.firstVisibleItemIndex > 0 || gridState.firstVisibleItemScrollOffset > 0)) {
+            isScrollingToTop = true
+            scope.launch {
+                try {
+                    val visibleItemCount = gridState.layoutInfo.visibleItemsInfo.size.coerceAtLeast(1)
+                    val firstVisibleItemIndex = gridState.firstVisibleItemIndex
+                    val jumpThreshold = visibleItemCount * 3
+                    if (firstVisibleItemIndex > jumpThreshold) {
+                        gridState.scrollToItem(visibleItemCount * 2)
+                    }
+                    gridState.animateScrollToItem(0)
+                } finally {
+                    isScrollingToTop = false
+                }
+            }
+        }
+    }
     BackHandler(searchState.isExpanded) {
         scope.launch { searchState.collapse() }
     }
+
+
     val isNavigationVisible =
         layoutType == NavigationSuiteType.NavigationRail || (scrollDirection >= 0 && !isSelectionMode && searchState.isCollapsed)
     LaunchedEffect(isNavigationVisible) {
@@ -212,7 +244,12 @@ private fun HomeContent(
             item(
                 selected = selectedTab == 0,
                 enabled = !isSelectionMode,
-                onClick = { onNavigationClick(0) },
+                onClick = {
+                    if (selectedTab == 0) {
+                        scrollGridToTop()
+                    }
+                    onNavigationClick(0)
+                },
                 icon = {
                     Icon(
                         painter = painterResource(R.drawable.ic_album),
@@ -235,13 +272,10 @@ private fun HomeContent(
             )
         }
     ) {
-        val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
         Scaffold(
             modifier = Modifier
                 .nestedScroll(scrollConnection)
-                .ifThen((banner == null || selectedTab != 0) && searchState.isCollapsed) {
-                    nestedScroll(scrollBehavior.nestedScrollConnection)
-                }
                 .fillMaxSize(),
             topBar = {
                 if (searchState.isExpanded) {
@@ -258,26 +292,35 @@ private fun HomeContent(
                         albumScope = albumScope,
                         onClick = { onBannerClick(banner) },
                         overlayContent = {
-                            OptionsMenu(
+                            IconButtonWithTooltip(
                                 modifier = Modifier
                                     .align(Alignment.TopEnd)
                                     .statusBarsPadding(),
-                                iconColor = if (isBannerDark) {
-                                    Color.White
-                                } else {
-                                    Color.Black
-                                },
-                                content = { onDismissRequest ->
-                                    OptionsMenuContent(onDismissRequest)
-                                },
-                            )
+                                tooltip = stringResource(R.string.menu),
+                                onClick = { context.startActivity(Intent(context, SettingsActivity::class.java)) },
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_menu),
+                                    contentDescription = stringResource(R.string.menu),
+                                    tint = if (isBannerDark) Color.White else Color.Black,
+                                )
+                            }
                         }
                     )
                 } else {
                     TopAppBar(
-                        modifier = Modifier.statusBarsPadding(),
                         title = {
-                            Text(stringResource(R.string.app_name))
+                            Text(
+                                modifier = Modifier
+                                    .clickable(
+                                        enabled = !isSelectionMode && !searchState.isExpanded,
+                                        indication = null,
+                                        interactionSource = null,
+                                        role = Role.Button,
+                                        onClick = scrollGridToTop,
+                                    ),
+                                text = stringResource(R.string.app_name),
+                            )
                         },
                         actions = {
                             IconButtonWithTooltip(
@@ -289,11 +332,20 @@ private fun HomeContent(
                                     contentDescription = stringResource(R.string.search),
                                 )
                             }
-                            OptionsMenu { onDismissRequest ->
-                                OptionsMenuContent(onDismissRequest)
+                            IconButtonWithTooltip(
+                                tooltip = stringResource(R.string.menu),
+                                onClick = { context.startActivity(Intent(context, SettingsActivity::class.java)) },
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_menu),
+                                    contentDescription = stringResource(R.string.menu),
+                                )
                             }
                         },
-                        scrollBehavior = scrollBehavior,
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                        ),
+                        scrollBehavior = null,
                     )
                 }
             },
@@ -336,18 +388,4 @@ private fun HomeContent(
             },
         )
     }
-}
-
-@Composable
-private fun OptionsMenuContent(
-    onDismissRequest: () -> Unit,
-) {
-    val context = LocalContext.current
-    DropdownMenuItem(
-        text = { Text(stringResource(R.string.settings)) },
-        onClick = {
-            onDismissRequest()
-            context.startActivity(Intent(context, SettingsActivity::class.java))
-        }
-    )
 }

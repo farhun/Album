@@ -23,6 +23,9 @@
     <string name="dark">Dark</string>
     <string name="menu">Menu</string>
     <string name="viewer_theme">Viewer theme</string>
+    <string name="sort_media_by">Sort media by</string>
+    <string name="date_added">Date added</string>
+    <string name="date_captured">Date captured</string>
     <string name="appearance">Appearance</string>
     <string name="behavior">Behavior</string>
     <string name="random_image">Random image</string>
@@ -38,8 +41,11 @@
     <string name="both">Both</string>
     <string name="wallpaper_applied">Wallpaper has been applied</string>
     <string name="set_as_wallpaper_hint">Zoom and pan image to fit it into the screen</string>
-    <string name="use_external_editor">Use external editor</string>
-    <string name="use_external_editor_summary">Allow you to use another image editor application if available</string>
+    <string name="use_external_editor">Use external editor for photos</string>
+    <string name="use_external_editor_summary">Choose another photo editor application when available</string>
+    <string name="no_video_editor_found">No video editor found</string>
+    <string name="no_file_manager_found_path_copied">No file manager found, path copied</string>
+    <string name="copied">Copied</string>
     <string name="close">Close</string>
     <string name="save">Save</string>
     <string name="replace">Replace</string>
@@ -91,6 +97,9 @@
     <string name="line_thickness">Line thickness</string>
     <string name="info">Information</string>
     <string name="name">Name</string>
+    <string name="file_size">File size</string>
+    <string name="path">Path</string>
+    <string name="no_maps_app">No maps app available</string>
     <string name="camera">Camera</string>
     <string name="location">Location</string>
     <string name="width">Width</string>
@@ -113,6 +122,8 @@
     <string name="error">Error</string>
     <string name="about_app">About</string>
     <string name="source_code">Source code</string>
+    <string name="original_project">Original project</string>
+    <string name="original_project_summary">Album by Koitharu (GPL-3.0)</string>
     <string name="clear_recycle_bin">Clear Recycle Bin</string>
     <string name="open_camera">Open camera</string>
     <string name="clear">Clear</string>

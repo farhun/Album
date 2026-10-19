@@ -31,6 +31,7 @@ sealed interface AlbumItem {
         val thumbnail: Uri
         val name: String?
         val dateAdded: ImmutableDateTime
+        val sortDateMillis: Long?
         val mimeType: String
         val isFavorite: Boolean
         val isTrashed: Boolean
@@ -45,7 +46,9 @@ sealed interface AlbumItem {
 
         fun copyWithFavoriteState(isFavorite: Boolean): Media
 
-        override fun dateTime(): ImmutableDateTime? = dateAdded
+        override fun dateTime(): ImmutableDateTime? = ImmutableDateTime(
+            sortDateMillis ?: dateAdded.millis
+        )
 
         companion object {
 
@@ -64,6 +67,7 @@ sealed interface AlbumItem {
                         dateAdded = ImmutableDateTime.ofSeconds(mediaItem.dateAdded),
                         isFavorite = mediaItem.isFavorite,
                         isTrashed = mediaItem.isTrashed,
+                        sortDateMillis = mediaItem.sortDateMillis,
                     )
                 } else {
                     Image(
@@ -76,6 +80,7 @@ sealed interface AlbumItem {
                         dateAdded = ImmutableDateTime.ofSeconds(mediaItem.dateAdded),
                         isFavorite = mediaItem.isFavorite,
                         isTrashed = mediaItem.isTrashed,
+                        sortDateMillis = mediaItem.sortDateMillis,
                     )
                 }
             }
@@ -93,6 +98,7 @@ sealed interface AlbumItem {
         override val mimeType: String,
         override val isFavorite: Boolean,
         override val isTrashed: Boolean,
+        override val sortDateMillis: Long? = null,
     ) : Media {
 
         override fun copyWithFavoriteState(isFavorite: Boolean) = copy(
@@ -111,6 +117,7 @@ sealed interface AlbumItem {
         override val mimeType: String,
         override val isFavorite: Boolean,
         override val isTrashed: Boolean,
+        override val sortDateMillis: Long? = null,
     ) : Media {
 
         override fun copyWithFavoriteState(isFavorite: Boolean) = copy(

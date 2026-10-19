@@ -19,8 +19,10 @@ import kotlinx.collections.immutable.PersistentList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toPersistentList
 import org.koitharu.album.AlbumApp.Companion.GITHUB_URL
+import org.koitharu.album.AlbumApp.Companion.ORIGINAL_PROJECT_URL
 import org.koitharu.album.R
 import org.koitharu.album.model.HomeBannerSource
+import org.koitharu.album.model.MediaSortOrder
 import org.koitharu.album.model.ThemeVariant
 import org.koitharu.album.repository.Features
 import org.koitharu.album.repository.SettingsRepository.Keys
@@ -28,6 +30,7 @@ import org.koitharu.album.ui.common.MviIntentHandler
 import org.koitharu.album.ui.settings.SettingsIntent.OpenUrl
 import org.koitharu.album.ui.settings.SettingsIntent.SetAppTheme
 import org.koitharu.album.ui.settings.SettingsIntent.SetHomeBanner
+import org.koitharu.album.ui.settings.SettingsIntent.SetMediaSortOrder
 import org.koitharu.album.ui.settings.SettingsIntent.SetIsRecycleBinEnabled
 import org.koitharu.album.ui.settings.SettingsIntent.SetIsRotationGestureEnabled
 import org.koitharu.album.ui.settings.SettingsIntent.SetShowAllDCIMFolders
@@ -106,6 +109,18 @@ fun SettingsScreen(
                 onEntryClick = { handleIntent(SetHomeBanner(it)) }
             )
         }
+        item(Keys.mediaSortOrder.name) {
+            ListPreference(
+                title = stringResource(R.string.sort_media_by),
+                entries = persistentListOf(
+                    stringResource(R.string.date_added),
+                    stringResource(R.string.date_captured),
+                ),
+                entryValues = MediaSortOrder.entries.toPersistentList(),
+                selectedValue = state.mediaSortOrder,
+                onEntryClick = { handleIntent(SetMediaSortOrder(it)) },
+            )
+        }
         item(Keys.showAllDCIMFolders.name) {
             SwitchPreference(
                 title = stringResource(R.string.show_all_dcim_folders),
@@ -168,6 +183,18 @@ fun SettingsScreen(
                 title = stringResource(R.string.source_code),
                 summary = GITHUB_URL,
                 onClick = { handleIntent(OpenUrl(GITHUB_URL)) },
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_open_in),
+                    contentDescription = null,
+                )
+            }
+        }
+        item(key = R.string.original_project) {
+            Preference(
+                title = stringResource(R.string.original_project),
+                summary = stringResource(R.string.original_project_summary),
+                onClick = { handleIntent(OpenUrl(ORIGINAL_PROJECT_URL)) },
             ) {
                 Icon(
                     painter = painterResource(R.drawable.ic_open_in),

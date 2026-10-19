@@ -1,6 +1,7 @@
 package org.koitharu.album.ui.settings
 
 import org.koitharu.album.model.HomeBannerSource
+import org.koitharu.album.model.MediaSortOrder
 import org.koitharu.album.model.ThemeVariant
 
 sealed interface SettingsIntent {
@@ -21,5 +22,7 @@ sealed interface SettingsIntent {
 
     data class SetShowAllDCIMFolders(val value: Boolean) : SettingsIntent
 
-    data class OpenUrl(val url: String): SettingsIntent
+    data class SetMediaSortOrder(val value: MediaSortOrder) : SettingsIntent
+
+    data class OpenUrl(val url: String) : SettingsIntent
 }

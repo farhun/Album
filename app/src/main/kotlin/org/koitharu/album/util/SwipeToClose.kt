@@ -15,46 +15,50 @@ import kotlinx.coroutines.launch
 
 fun Modifier.slideUpToClose(
     onClose: () -> Unit,
+    onSwipeUp: () -> Unit,
 ) = composed {
     val offsetY = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
     val velocityTracker = remember { VelocityTracker() }
     graphicsLayer {
         val maxDistance = size.height
-        val progress = if (maxDistance > 0) (-offsetY.value / maxDistance) else 0f
+        val progress = if (maxDistance > 0) (offsetY.value / maxDistance) else 0f
         translationY = offsetY.value
         alpha = (1f - progress).coerceIn(0f, 1f)
     }.pointerInput(Unit) {
+        var dragDistance = 0f
         detectDragGestures(
             orientationLock = Orientation.Vertical,
             onDragStart = { _, _, _ ->
+                dragDistance = 0f
                 velocityTracker.resetTracking()
             },
             onDragCancel = {
                 velocityTracker.resetTracking()
+                scope.launch { offsetY.animateTo(0f) }
             },
             onDrag = { change, dragAmount ->
                 velocityTracker.addPointerInputChange(change)
                 change.consume()
+                dragDistance += dragAmount.y
                 scope.launch {
-                    val newOffset =
-                        (offsetY.value + dragAmount.y).coerceIn(-size.height.toFloat(), 0f)
-                    offsetY.snapTo(newOffset)
+                    offsetY.snapTo(dragDistance.coerceIn(0f, size.height.toFloat()))
                 }
             },
             onDragEnd = {
                 val velocity = velocityTracker.calculateVelocity()
-                if (velocity.y <= -viewConfiguration.minimumFlingVelocity) {
-                    onClose()
-                } else {
-                    val threshold = size.height / 4f
-                    if (offsetY.value <= -threshold) {
-                        onClose()
-                    } else {
-                        scope.launch {
-                            offsetY.animateTo(0f)
-                        }
+                val dismissThreshold = size.height / 4f
+                val infoThreshold = size.height / 10f
+                when {
+                    dragDistance >= dismissThreshold ||
+                            (dragDistance > 0f && velocity.y >= viewConfiguration.minimumFlingVelocity) -> onClose()
+
+                    dragDistance <= -infoThreshold -> {
+                        scope.launch { offsetY.animateTo(0f) }
+                        onSwipeUp()
                     }
+
+                    else -> scope.launch { offsetY.animateTo(0f) }
                 }
             }
         )

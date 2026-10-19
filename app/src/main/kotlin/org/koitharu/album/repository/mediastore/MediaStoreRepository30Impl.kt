@@ -10,8 +10,10 @@ import android.util.ArraySet
 import androidx.annotation.RequiresApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.withContext
 import org.koitharu.album.repository.Features
 import org.koitharu.album.repository.HiddenMediaRepository
@@ -186,6 +188,15 @@ class MediaStoreRepository30Impl(
             it.count
         }
     }
+
+    override fun observeRecycleBinSize(): Flow<Int> = contentResolver.observeChanges(
+        uri = baseUri,
+        kickstart = false,
+    ).debounce(300).mapLatest {
+        getRecycleBinSize()
+    }.onStart {
+        emit(getRecycleBinSize())
+    }.distinctUntilChanged()
 
     override fun observeIsFavorite(id: Long): Flow<Boolean> = contentResolver.observeChanges(
         uri = baseUri,

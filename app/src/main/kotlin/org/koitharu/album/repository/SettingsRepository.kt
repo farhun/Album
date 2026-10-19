@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.plus
 import org.koitharu.album.model.HomeBannerSource
+import org.koitharu.album.model.MediaSortOrder
 import org.koitharu.album.model.ThemeVariant
 import javax.inject.Inject
 
@@ -78,12 +79,17 @@ class SettingsRepository @Inject constructor(
     }.stateIn(coroutineScope + Dispatchers.Default, SharingStarted.Eagerly, ThemeVariant.DARK)
 
     val homeBannerSource = context.dataStore.data.map { prefs ->
-        prefs[Keys.homeBanner, HomeBannerSource.RANDOM]
+        prefs[Keys.homeBanner, HomeBannerSource.NONE]
     }.distinctUntilChanged()
 
     val showAllDCIMFolders = context.dataStore.data.map { prefs ->
         prefs[Keys.showAllDCIMFolders] ?: false
     }.distinctUntilChanged()
+
+    val mediaSortOrder: Flow<MediaSortOrder>
+        get() = context.dataStore.data.map { prefs ->
+            prefs[Keys.mediaSortOrder, MediaSortOrder.DATE_CAPTURED]
+        }.distinctUntilChanged()
 
     suspend fun setGridScale(scale: Float) {
         context.dataStore.edit { prefs ->
@@ -151,6 +157,12 @@ class SettingsRepository @Inject constructor(
         }
     }
 
+    suspend fun setMediaSortOrder(value: MediaSortOrder) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.mediaSortOrder] = value.name
+        }
+    }
+
     object Keys {
 
         val useRecycleBin = booleanPreferencesKey("recycle_bin")
@@ -161,6 +173,7 @@ class SettingsRepository @Inject constructor(
         val appTheme = stringPreferencesKey("app_theme")
         val viewerTheme = stringPreferencesKey("viewer_theme")
         val homeBanner = stringPreferencesKey("home_banner")
+        val mediaSortOrder = stringPreferencesKey("media_sort_order")
         val useExternalEditor = booleanPreferencesKey("external_editor")
         val editorColor = intPreferencesKey("editor_color")
         val editorLineThickness = intPreferencesKey("editor_line_thick")

@@ -6,12 +6,14 @@ sealed interface ViewerEffect {
 
     data class OnError(
         val error: Throwable,
-    ): ViewerEffect
+    ) : ViewerEffect
 
     data class OpenImageEditor(
         val uri: Uri,
         val name: String?,
-    ): ViewerEffect
+    ) : ViewerEffect
+
+    data object NoVideoEditorFound : ViewerEffect
 
     data object CloseViewer : ViewerEffect
 }

@@ -37,6 +37,7 @@ class AlbumApp : Application(), SingletonImageLoader.Factory {
 
     companion object {
 
-        const val GITHUB_URL = "https://github.com/koitharu/album"
+        const val GITHUB_URL = "https://github.com/farhun/Album"
+        const val ORIGINAL_PROJECT_URL = "https://github.com/Koitharu/Album"
     }
 }

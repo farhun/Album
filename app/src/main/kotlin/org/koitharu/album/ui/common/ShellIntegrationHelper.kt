@@ -89,6 +89,21 @@ class ShellIntegrationHelper @Inject constructor(
         context.startActivity(chooserIntent)
     }
 
+    suspend fun openVideoEditor(video: AlbumItem.Video): Boolean =
+        withContext(Dispatchers.Main.immediate) {
+            val context = activityContextProvider.get()
+            val intent = Intent(Intent.ACTION_EDIT)
+                .setDataAndType(video.uri, video.mimeType.takeIf { it.startsWith("video/") } ?: "video/*")
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            val chooserIntent = Intent.createChooser(intent, context.getString(R.string.edit))
+            if (context.packageManager.queryIntentActivities(intent, 0).isEmpty()) {
+                false
+            } else {
+                context.startActivity(chooserIntent)
+                true
+            }
+        }
+
     suspend fun openLink(link: String) = withContext(Dispatchers.Main.immediate) {
         val context = activityContextProvider.get()
         val intent = Intent(Intent.ACTION_VIEW, link.toUri())

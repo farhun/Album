@@ -31,9 +31,9 @@ class SearchViewModel @Inject constructor(
 
     val searchResults = currentQuery
         .debounce { value ->
-            if (value.length < 3) 0.milliseconds else 500.milliseconds
+            if (value.isEmpty()) 0.milliseconds else 300.milliseconds
         }.flatMapLatest { query ->
-            if (query.length < 3) {
+            if (query.isEmpty()) {
                 flowOf(PagingData.empty())
             } else {
                 Pager(

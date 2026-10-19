@@ -40,6 +40,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -80,10 +81,12 @@ import org.koitharu.album.ui.theme.AlbumTheme
 import org.koitharu.album.ui.theme.resolveThemeVariant
 import org.koitharu.album.ui.viewer.ViewerEffect.CloseViewer
 import org.koitharu.album.ui.viewer.ViewerEffect.OnError
+import org.koitharu.album.ui.viewer.ViewerEffect.NoVideoEditorFound
 import org.koitharu.album.ui.viewer.ViewerEffect.OpenImageEditor
 import org.koitharu.album.ui.viewer.ViewerIntent.CloseInfo
 import org.koitharu.album.ui.viewer.ViewerIntent.Delete
 import org.koitharu.album.ui.viewer.ViewerIntent.Edit
+import org.koitharu.album.ui.viewer.ViewerIntent.EditVideo
 import org.koitharu.album.ui.viewer.ViewerIntent.Favorite
 import org.koitharu.album.ui.viewer.ViewerIntent.OnMediaChanged
 import org.koitharu.album.ui.viewer.ViewerIntent.OpenInExternalApp
@@ -126,6 +129,10 @@ fun ViewerScreen(
                         effect.error.message ?: resources.getString(R.string.error_message_generic)
                     )
 
+                    NoVideoEditorFound -> snackbarHostState.showSnackbar(
+                        resources.getString(R.string.no_video_editor_found)
+                    )
+
                     is OpenImageEditor -> context.startActivity(
                         Intent(
                             context,
@@ -149,9 +156,9 @@ fun ViewerScreen(
             handleIntent = viewModel,
             onClose = { albumViewModel.handleIntent(CloseMedia) }
         )
-        state.infoBottomSheetImage?.let {
+        state.infoBottomSheetMedia?.let {
             MediaInfoBottomSheet(
-                image = it,
+                media = it,
                 onDismissRequest = { viewModel.handleIntent(CloseInfo) },
             )
         }
@@ -173,6 +180,7 @@ private fun PagerMediaViewer(
 ) = AlbumTheme(variant = resolveThemeVariant(isForViewer = true)) {
     val insetsController = rememberWindowInsetsController()
     var isUiVisible by remember { mutableStateOf(true) }
+
     if (insetsController != null) {
         SetSystemBarsColorsEffect(insetsController = insetsController)
         DisposableEffect(Unit) {
@@ -257,7 +265,10 @@ private fun PagerMediaViewer(
             SingleViewer(
                 modifier = Modifier
                     .fillMaxSize()
-                    .slideUpToClose(onClose),
+                    .slideUpToClose(
+                        onClose = onClose,
+                        onSwipeUp = { handleIntent(OpenInfo(media)) },
+                    ),
                 media = media,
                 contentPadding = innerPadding,
                 sharedTransitionScope = sharedTransitionScope,
@@ -273,7 +284,10 @@ private fun PagerMediaViewer(
             ViewerPager(
                 modifier = Modifier
                     .fillMaxSize()
-                    .slideUpToClose(onClose),
+                    .slideUpToClose(
+                        onClose = onClose,
+                        onSwipeUp = { handleIntent(OpenInfo(media)) },
+                    ),
                 images = images,
                 contentPadding = innerPadding,
                 initialIndex = initialIndex,
@@ -466,6 +480,17 @@ private fun BottomBar(
                         contentDescription = stringResource(R.string.edit)
                     )
                 }
+            } else if (media is AlbumItem.Video) {
+                IconButtonWithTooltip(
+                    tooltip = stringResource(R.string.edit),
+                    tooltipAnchorPosition = TooltipAnchorPosition.Above,
+                    onClick = { handleIntent(EditVideo(media)) },
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_edit_image),
+                        contentDescription = stringResource(R.string.edit)
+                    )
+                }
             }
             IconButtonWithTooltip(
                 tooltip = stringResource(R.string.delete),
@@ -535,16 +560,16 @@ private fun OptionMenu(
                 dismiss()
             }
         )
-        DropdownMenuItem(
-            text = {
-                Text(stringResource(R.string.info))
-            },
-            onClick = {
-                handleIntent(OpenInfo(media))
-                dismiss()
-            }
-        )
     }
+    DropdownMenuItem(
+        text = {
+            Text(stringResource(R.string.info))
+        },
+        onClick = {
+            handleIntent(OpenInfo(media))
+            dismiss()
+        }
+    )
 }
 
 private fun computeInitialIndex(

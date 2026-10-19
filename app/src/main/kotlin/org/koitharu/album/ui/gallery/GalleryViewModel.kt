@@ -16,6 +16,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -76,17 +77,19 @@ class GalleryViewModel @AssistedInject constructor(
 
     private val isCommonAlbum = query == MediaQuery()
 
-    val pagerContent = state.map {
-        it.query
-    }.distinctUntilChanged()
-        .flatMapLatest { mediaQuery ->
+    val pagerContent = combine(
+        state.map { it.query }.distinctUntilChanged(),
+        settingsRepository.mediaSortOrder,
+    ) { mediaQuery, sortOrder -> mediaQuery to sortOrder }
+        .distinctUntilChanged()
+        .flatMapLatest { (mediaQuery, sortOrder) ->
             Pager(
                 config = PagingConfig(
                     pageSize = 30,
                     enablePlaceholders = true,
                 ),
                 pagingSourceFactory = {
-                    gallerySourceFactory.create(mediaQuery)
+                    gallerySourceFactory.create(mediaQuery, sortOrder)
                 }
             ).flow
         }.map { pagingData ->
@@ -101,15 +104,15 @@ class GalleryViewModel @AssistedInject constructor(
                 after == null -> null
                 before == null ->
                     if (!isCommonAlbum) {
-                        AlbumItem.DateHeader(after.dateAdded)
+                        AlbumItem.DateHeader(after.dateTime()!!)
                     } else {
                         null
                     }
 
                 !isSameMonth(
-                    before.dateAdded,
-                    after.dateAdded
-                ) -> AlbumItem.DateHeader(after.dateAdded)
+                    before.dateTime()!!,
+                    after.dateTime()!!,
+                ) -> AlbumItem.DateHeader(after.dateTime()!!)
 
                 else -> null
             }

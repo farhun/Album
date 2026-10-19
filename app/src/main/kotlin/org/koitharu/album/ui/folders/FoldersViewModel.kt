@@ -29,12 +29,14 @@ class FoldersViewModel @Inject constructor(
             combine(
                 repository.observeFolders(),
                 repository.observeFavoritesSize(),
+                repository.observeRecycleBinSize(),
                 hiddenMediaRepository.observeHiddenCount(),
                 settingsRepository.showAllDCIMFolders,
-            ) { list, favoritesCount, hiddenCount, showDCIM ->
+            ) { list, favoritesCount, recycleBinCount, hiddenCount, showDCIM ->
                 mapFolders(
                     list = list,
                     favoritesCount = favoritesCount,
+                    recycleBinCount = recycleBinCount,
                     hiddenCount = hiddenCount,
                     showDCIMFolders = showDCIM,
                 )
@@ -57,6 +59,7 @@ class FoldersViewModel @Inject constructor(
     private suspend fun mapFolders(
         list: List<MediaFolder>,
         favoritesCount: Int,
+        recycleBinCount: Int,
         hiddenCount: Int,
         showDCIMFolders: Boolean,
     ): PersistentList<FolderItem> =
@@ -70,7 +73,7 @@ class FoldersViewModel @Inject constructor(
             if (Features.isRecycleBinSupported) {
                 add(
                     FolderItem.RecycleBin(
-                        size = repository.getRecycleBinSize(),
+                        size = recycleBinCount,
                         thumbnail = null,
                     )
                 )

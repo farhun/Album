@@ -14,6 +14,7 @@ import androidx.paging.PagingSource.LoadResult
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.withContext
@@ -88,6 +89,8 @@ open class MediaStoreRepositoryLegacyImpl(
     }
 
     override suspend fun getRecycleBinSize(): Int = 0
+
+    override fun observeRecycleBinSize(): Flow<Int> = flowOf(0)
 
     override suspend fun getFolders(): List<MediaFolder> = contentResolver.queryCompat(
         uri = MediaStore.Files.getContentUri("external"),

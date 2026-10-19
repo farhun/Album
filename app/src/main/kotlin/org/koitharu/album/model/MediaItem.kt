@@ -14,6 +14,8 @@ data class MediaItem(
     val isTrashed: Boolean,
     val isVideo: Boolean,
     private val path: String?,
+    val dateTaken: Long = 0L,
+    val sortDateMillis: Long? = null,
 ) {
 
     fun getBurstId(): String? {

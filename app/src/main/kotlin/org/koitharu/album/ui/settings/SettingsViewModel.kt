@@ -6,6 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import org.koitharu.album.model.HomeBannerSource
+import org.koitharu.album.model.MediaSortOrder
 import org.koitharu.album.model.ThemeVariant
 import org.koitharu.album.repository.SettingsRepository
 import org.koitharu.album.ui.common.MviViewModel
@@ -13,6 +14,7 @@ import org.koitharu.album.ui.common.ShellIntegrationHelper
 import org.koitharu.album.ui.settings.SettingsIntent.OpenUrl
 import org.koitharu.album.ui.settings.SettingsIntent.SetAppTheme
 import org.koitharu.album.ui.settings.SettingsIntent.SetHomeBanner
+import org.koitharu.album.ui.settings.SettingsIntent.SetMediaSortOrder
 import org.koitharu.album.ui.settings.SettingsIntent.SetIsRecycleBinEnabled
 import org.koitharu.album.ui.settings.SettingsIntent.SetIsRotationGestureEnabled
 import org.koitharu.album.ui.settings.SettingsIntent.SetShowAllDCIMFolders
@@ -40,6 +42,7 @@ class SettingsViewModel @Inject constructor(
                 repository.useExternalEditor,
                 repository.isVideMutedOnStart,
                 repository.showAllDCIMFolders,
+                repository.mediaSortOrder,
             ) { data ->
                 SettingsState(
                     isRecycleBinEnabled = data[0] as Boolean,
@@ -50,6 +53,7 @@ class SettingsViewModel @Inject constructor(
                     useExternalEditor = data[5] as Boolean,
                     isVideosMutedOnStart = data[6] as Boolean,
                     showAllDCIMFolders = data[7] as Boolean,
+                    mediaSortOrder = data[8] as MediaSortOrder,
                 )
             }.collect {
                 state.value = it
@@ -69,6 +73,7 @@ class SettingsViewModel @Inject constructor(
                     is SetUseExternalEditor -> repository.setUseExternalEditor(intent.value)
                     is SetVideosMutedOnStart -> repository.setVideosMutedOnStart(intent.value)
                     is SetShowAllDCIMFolders -> repository.setShowAllDCIMFolders(intent.value)
+                    is SetMediaSortOrder -> repository.setMediaSortOrder(intent.value)
                     is OpenUrl -> shellIntegrationHelper.openLink(intent.url)
                 }
             }.onFailure { e ->

@@ -46,8 +46,12 @@ sealed interface ViewerIntent {
         val image: AlbumItem.Image,
     ) : ViewerIntent
 
+    data class EditVideo(
+        val video: AlbumItem.Video,
+    ) : ViewerIntent
+
     data class OpenInfo(
-        val image: AlbumItem.Image,
+        val media: AlbumItem.Media,
     ) : ViewerIntent
 
     data object CloseInfo : ViewerIntent
