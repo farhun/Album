@@ -13,6 +13,8 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import org.koitharu.album.repository.HiddenMediaRepository
+import org.koitharu.album.repository.editor.MediaExtractorVideoTrimmer
+import org.koitharu.album.repository.editor.VideoTrimmer
 import org.koitharu.album.repository.LegacyFavoritesRepository
 import org.koitharu.album.repository.MediaStoreConfirmationDialogs
 import org.koitharu.album.repository.mediastore.MediaStoreRepository
@@ -33,6 +35,10 @@ class AppModule {
     @Provides
     fun provideProcessLifecycleScope(): LifecycleCoroutineScope =
         ProcessLifecycleOwner.get().lifecycleScope
+
+    @Provides
+    @Reusable
+    fun provideVideoTrimmer(implementation: MediaExtractorVideoTrimmer): VideoTrimmer = implementation
 
     @Provides
     @Reusable

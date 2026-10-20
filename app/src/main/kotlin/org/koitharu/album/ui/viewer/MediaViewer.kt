@@ -74,6 +74,7 @@ import org.koitharu.album.ui.common.MviIntentHandler
 import org.koitharu.album.ui.common.OptionsMenu
 import org.koitharu.album.ui.common.SetSystemBarsColorsEffect
 import org.koitharu.album.ui.editor.ImageEditorActivity
+import org.koitharu.album.ui.editor.VideoTrimmerActivity
 import org.koitharu.album.ui.gallery.GalleryIntent.CloseMedia
 import org.koitharu.album.ui.gallery.GalleryViewModel
 import org.koitharu.album.ui.info.MediaInfoBottomSheet
@@ -83,6 +84,7 @@ import org.koitharu.album.ui.viewer.ViewerEffect.CloseViewer
 import org.koitharu.album.ui.viewer.ViewerEffect.OnError
 import org.koitharu.album.ui.viewer.ViewerEffect.NoVideoEditorFound
 import org.koitharu.album.ui.viewer.ViewerEffect.OpenImageEditor
+import org.koitharu.album.ui.viewer.ViewerEffect.OpenVideoTrimmer
 import org.koitharu.album.ui.viewer.ViewerIntent.CloseInfo
 import org.koitharu.album.ui.viewer.ViewerIntent.Delete
 import org.koitharu.album.ui.viewer.ViewerIntent.Edit
@@ -139,6 +141,13 @@ fun ViewerScreen(
                             ImageEditorActivity::class.java
                         ).setData(effect.uri)
                             .putExtra(ImageEditorActivity.EXTRA_NAME, effect.name)
+                    )
+
+                    is OpenVideoTrimmer -> context.startActivity(
+                        Intent(context, VideoTrimmerActivity::class.java)
+                            .setAction(Intent.ACTION_EDIT)
+                            .setDataAndType(effect.uri, "video/*")
+                            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     )
 
                     CloseViewer -> albumViewModel.handleIntent(CloseMedia)

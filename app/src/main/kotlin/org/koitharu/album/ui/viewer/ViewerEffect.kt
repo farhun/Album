@@ -13,6 +13,10 @@ sealed interface ViewerEffect {
         val name: String?,
     ) : ViewerEffect
 
+    data class OpenVideoTrimmer(
+        val uri: Uri,
+    ) : ViewerEffect
+
     data object NoVideoEditorFound : ViewerEffect
 
     data object CloseViewer : ViewerEffect

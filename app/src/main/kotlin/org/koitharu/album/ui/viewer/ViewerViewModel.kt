@@ -23,6 +23,7 @@ import org.koitharu.album.ui.common.MviViewModel
 import org.koitharu.album.ui.common.ShellIntegrationHelper
 import org.koitharu.album.ui.viewer.ViewerEffect.CloseViewer
 import org.koitharu.album.ui.viewer.ViewerEffect.OnError
+import org.koitharu.album.ui.viewer.ViewerEffect.OpenVideoTrimmer
 import org.koitharu.album.ui.viewer.ViewerIntent.CloseInfo
 import org.koitharu.album.ui.viewer.ViewerIntent.Delete
 import org.koitharu.album.ui.viewer.ViewerIntent.Edit
@@ -162,8 +163,12 @@ class ViewerViewModel @AssistedInject constructor(
     private fun openVideoEditor(video: AlbumItem.Video) {
         viewModelScope.launch {
             try {
-                if (!shellIntegrationHelper.openVideoEditor(video)) {
-                    sendEffect(ViewerEffect.NoVideoEditorFound)
+                if (settingsRepository.useExternalEditor.first()) {
+                    if (!shellIntegrationHelper.openVideoEditor(video)) {
+                        sendEffect(ViewerEffect.NoVideoEditorFound)
+                    }
+                } else {
+                    sendEffect(OpenVideoTrimmer(video.uri))
                 }
             } catch (e: Exception) {
                 sendEffect(OnError(e))
