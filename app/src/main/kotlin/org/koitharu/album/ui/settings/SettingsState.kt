@@ -28,6 +28,6 @@ data class SettingsState(
         useExternalEditor = false,
         isVideosMutedOnStart = false,
         showAllDCIMFolders = false,
-        mediaSortOrder = MediaSortOrder.DATE_CAPTURED,
+        mediaSortOrder = MediaSortOrder.DATE_ADDED,
     )
 }

@@ -26,6 +26,7 @@
     <string name="sort_media_by">Sort media by</string>
     <string name="date_added">Date added</string>
     <string name="date_captured">Date captured</string>
+    <string name="date_modified">Date modified</string>
     <string name="appearance">Appearance</string>
     <string name="behavior">Behavior</string>
     <string name="random_image">Random image</string>

@@ -88,7 +88,7 @@ class SettingsRepository @Inject constructor(
 
     val mediaSortOrder: Flow<MediaSortOrder>
         get() = context.dataStore.data.map { prefs ->
-            prefs[Keys.mediaSortOrder, MediaSortOrder.DATE_CAPTURED]
+            prefs[Keys.mediaSortOrder, MediaSortOrder.DATE_ADDED]
         }.distinctUntilChanged()
 
     suspend fun setGridScale(scale: Float) {

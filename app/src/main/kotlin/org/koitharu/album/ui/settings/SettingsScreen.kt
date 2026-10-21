@@ -115,6 +115,7 @@ fun SettingsScreen(
                 entries = persistentListOf(
                     stringResource(R.string.date_added),
                     stringResource(R.string.date_captured),
+                    stringResource(R.string.date_modified),
                 ),
                 entryValues = MediaSortOrder.entries.toPersistentList(),
                 selectedValue = state.mediaSortOrder,
