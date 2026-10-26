@@ -17,6 +17,7 @@ import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.koitharu.album.ui.common.AlbumItem
@@ -26,19 +27,35 @@ import org.koitharu.album.util.runCatchingCancellable
 
 @HiltViewModel(assistedFactory = MediaInfoViewModel.Factory::class)
 class MediaInfoViewModel @AssistedInject constructor(
-    @Assisted private val media: AlbumItem.Media,
+    @Assisted media: AlbumItem.Media,
     private val contentResolver: ContentResolver,
     @ApplicationContext private val context: Context,
 ) : MviViewModel<MediaInfoState, Nothing, Nothing>(MediaInfoState(media)) {
 
-    init {
-        readFileInfo()
+    @Volatile
+    private var loadGeneration = 0L
+    private var currentMedia = media
+    private var fileInfoJob: Job? = null
+    private var detailsJob: Job? = null
+
+    fun load(media: AlbumItem.Media) {
+        val generation = ++loadGeneration
+        currentMedia = media
+        fileInfoJob?.cancel()
+        detailsJob?.cancel()
+        state.value = MediaInfoState(media)
+        fileInfoJob = viewModelScope.launch(Dispatchers.IO) {
+            readFileInfo(media, generation)
+        }
     }
 
     fun onMediaLocationPermissionResult(isGranted: Boolean) {
+        val media = currentMedia
         if (media is AlbumItem.Image) {
-            viewModelScope.launch(Dispatchers.IO) {
-                readImageDetails(locationAllowed = isGranted)
+            val generation = loadGeneration
+            detailsJob?.cancel()
+            detailsJob = viewModelScope.launch(Dispatchers.IO) {
+                readImageDetails(media, locationAllowed = isGranted, generation = generation)
             }
         }
     }
@@ -46,7 +63,7 @@ class MediaInfoViewModel @AssistedInject constructor(
     override fun handleIntent(intent: Nothing) {
     }
 
-    private fun readFileInfo() = viewModelScope.launch(Dispatchers.IO) {
+    private fun readFileInfo(media: AlbumItem.Media, generation: Long) {
         val info = runCatchingCancellable {
             val cursor = contentResolver.query(
                 media.uri,
@@ -69,7 +86,7 @@ class MediaInfoViewModel @AssistedInject constructor(
                     val dataPath = if (dataColumn >= 0) it.getString(dataColumn) else null
                     val relativePath = if (relativePathColumn >= 0) it.getString(relativePathColumn) else null
                     val displayName = if (nameColumn >= 0) it.getString(nameColumn) else media.name
-                    val path = dataPath ?: buildFullPath(relativePath, displayName)
+                    val path = dataPath ?: buildFullPath(media, relativePath, displayName)
                     val volumeName = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                         runCatching { MediaStore.getVolumeName(media.uri) }.getOrNull()
                     } else {
@@ -89,12 +106,16 @@ class MediaInfoViewModel @AssistedInject constructor(
             }
         }.getOrNull()
         state.update {
-            it.copy(
-                fileSizeBytes = sizeBytes,
-                path = info?.second,
-                relativePath = info?.third?.first,
-                volumeName = info?.third?.second,
-            )
+            if (generation == loadGeneration) {
+                it.copy(
+                    fileSizeBytes = sizeBytes,
+                    path = info?.second,
+                    relativePath = info?.third?.first,
+                    volumeName = info?.third?.second,
+                )
+            } else {
+                it
+            }
         }
     }
 
@@ -129,7 +150,11 @@ class MediaInfoViewModel @AssistedInject constructor(
     }
 
 
-    private fun readImageDetails(locationAllowed: Boolean) {
+    private fun readImageDetails(
+        media: AlbumItem.Image,
+        locationAllowed: Boolean,
+        generation: Long,
+    ) {
         runCatchingCancellable {
             val imageUri = if (locationAllowed && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 runCatching { MediaStore.setRequireOriginal(media.uri) }.getOrNull()
@@ -141,20 +166,32 @@ class MediaInfoViewModel @AssistedInject constructor(
             stream.use {
                 val exif = ExifInterface(it)
                 state.update { currentState ->
-                    currentState.copy(
-                        latLng = if (locationAllowed) exif.latLong?.let { latLng -> latLng[0] to latLng[1] } else currentState.latLng,
-                        model = exif.getAttribute(ExifInterface.TAG_MODEL),
-                        size = lets(
-                            exif.getAttribute(ExifInterface.TAG_IMAGE_WIDTH)?.toIntOrNull(),
-                            exif.getAttribute(ExifInterface.TAG_IMAGE_LENGTH)?.toIntOrNull(),
-                        ) { w, h -> Size(w, h) },
-                    )
+                    if (generation == loadGeneration) {
+                        currentState.copy(
+                            latLng = if (locationAllowed) {
+                                exif.latLong?.let { latLng -> latLng[0] to latLng[1] }
+                            } else {
+                                null
+                            },
+                            model = exif.getAttribute(ExifInterface.TAG_MODEL),
+                            size = lets(
+                                exif.getAttribute(ExifInterface.TAG_IMAGE_WIDTH)?.toIntOrNull(),
+                                exif.getAttribute(ExifInterface.TAG_IMAGE_LENGTH)?.toIntOrNull(),
+                            ) { w, h -> Size(w, h) },
+                        )
+                    } else {
+                        currentState
+                    }
                 }
             }
         }
     }
 
-    private fun buildFullPath(relativePath: String?, displayName: String?): String? {
+    private fun buildFullPath(
+        media: AlbumItem.Media,
+        relativePath: String?,
+        displayName: String?,
+    ): String? {
         if (displayName.isNullOrEmpty()) return null
         val volumeName = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             runCatching { MediaStore.getVolumeName(media.uri) }.getOrNull()
@@ -178,8 +215,8 @@ class MediaInfoViewModel @AssistedInject constructor(
         }
     }
 
-    private fun readVideoLocation() {
-        runCatchingCancellable {
+    private fun readVideoLocation(media: AlbumItem.Video, generation: Long) {
+        val coordinates = runCatchingCancellable {
             val retriever = MediaMetadataRetriever()
             try {
                 retriever.setDataSource(context, media.uri)
@@ -188,15 +225,21 @@ class MediaInfoViewModel @AssistedInject constructor(
             } finally {
                 retriever.release()
             }
-        }.getOrNull()?.let { coordinates ->
-            state.update { it.copy(latLng = coordinates) }
+        }.getOrNull()
+        if (coordinates != null) {
+            state.update {
+                if (generation == loadGeneration) it.copy(latLng = coordinates) else it
+            }
         }
     }
 
     fun readLocationMetadata() {
+        val media = currentMedia
         if (media is AlbumItem.Video) {
-            viewModelScope.launch(Dispatchers.IO) {
-                readVideoLocation()
+            val generation = loadGeneration
+            detailsJob?.cancel()
+            detailsJob = viewModelScope.launch(Dispatchers.IO) {
+                readVideoLocation(media, generation)
             }
         }
     }

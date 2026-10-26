@@ -5,6 +5,7 @@ import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.graphicsLayer
@@ -20,6 +21,8 @@ fun Modifier.slideUpToClose(
     val offsetY = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
     val velocityTracker = remember { VelocityTracker() }
+    val currentOnClose = rememberUpdatedState(onClose)
+    val currentOnSwipeUp = rememberUpdatedState(onSwipeUp)
     graphicsLayer {
         val maxDistance = size.height
         val progress = if (maxDistance > 0) (offsetY.value / maxDistance) else 0f
@@ -51,11 +54,11 @@ fun Modifier.slideUpToClose(
                 val infoThreshold = size.height / 10f
                 when {
                     dragDistance >= dismissThreshold ||
-                            (dragDistance > 0f && velocity.y >= viewConfiguration.minimumFlingVelocity) -> onClose()
+                            (dragDistance > 0f && velocity.y >= viewConfiguration.minimumFlingVelocity) -> currentOnClose.value()
 
                     dragDistance <= -infoThreshold -> {
                         scope.launch { offsetY.animateTo(0f) }
-                        onSwipeUp()
+                        currentOnSwipeUp.value()
                     }
 
                     else -> scope.launch { offsetY.animateTo(0f) }

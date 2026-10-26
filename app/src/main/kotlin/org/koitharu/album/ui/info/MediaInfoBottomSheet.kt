@@ -51,13 +51,14 @@ fun MediaInfoBottomSheet(
     }
     val state by viewModel.collectState()
     val context = LocalContext.current
-    var hasRequestedLocationPermission by remember(media.id) { mutableStateOf(false) }
+    var hasRequestedLocationPermission by remember(media.id, media.uri) { mutableStateOf(false) }
     val locationPermissionLauncher = rememberLauncherForActivityResult(RequestPermission()) { isGranted ->
         hasRequestedLocationPermission = true
         if (!isGranted) LocationPermissionSession.wasDenied = true
         viewModel.onMediaLocationPermissionResult(isGranted)
     }
-    LaunchedEffect(media.id) {
+    LaunchedEffect(media.id, media.uri, media.isTrashed) {
+        viewModel.load(media)
         if (media is AlbumItem.Video) {
             viewModel.readLocationMetadata()
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -79,9 +80,14 @@ fun MediaInfoBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
     ) {
+        val currentState = if (state.mediaUri == media.uri.toString()) {
+            state
+        } else {
+            MediaInfoState(media)
+        }
         MediaInfoContent(
-            state = state,
-            onOpenFolder = { viewModel.getContainingFolderDocumentUri(state.path) }
+            state = currentState,
+            onOpenFolder = { viewModel.getContainingFolderDocumentUri(currentState.path) }
         )
     }
 }

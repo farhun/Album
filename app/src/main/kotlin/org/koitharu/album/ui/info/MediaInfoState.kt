@@ -16,6 +16,7 @@ data class MediaInfoState(
     val relativePath: String?,
     val volumeName: String?,
     val isImage: Boolean,
+    val mediaUri: String? = null,
 ) {
 
     constructor(media: AlbumItem.Media) : this(
@@ -28,6 +29,7 @@ data class MediaInfoState(
         relativePath = null,
         volumeName = null,
         isImage = media is AlbumItem.Image,
+        mediaUri = media.uri.toString(),
     )
 
     val sizeMp: Double? = size?.run {

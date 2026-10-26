@@ -92,7 +92,10 @@ class ViewerViewModel @AssistedInject constructor(
                     sendEffect(CloseViewer)
                 } else {
                     state.update {
-                        it.copy(currentMedia = intent.media)
+                        it.copy(
+                            currentMedia = intent.media,
+                            infoBottomSheetMedia = if (it.infoBottomSheetMedia != null) intent.media else null,
+                        )
                     }
                 }
             }
